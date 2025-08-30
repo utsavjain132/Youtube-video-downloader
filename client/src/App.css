@@ -1,83 +1,206 @@
-.App {
-  text-align: center;
-}
-
-.App-header {
-  background-color: #282c34;
-  padding: 40px;
-  color: white;
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  color: white;
 }
 
-.download-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.container {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 2.5em;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 1.1em;
+  opacity: 0.9;
+  margin-bottom: 30px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+input, select, button {
   width: 100%;
-  max-width: 500px;
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.url-input {
   padding: 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 16px;
-  width: 100%;
   box-sizing: border-box;
 }
 
-.format-select {
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  background-color: white;
+input, select {
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+}
+
+button {
+  background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+  color: white;
+  font-weight: bold;
   cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+button:hover:not(:disabled) {
+  background: linear-gradient(45deg, #ee5a52, #ff6b6b);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+button:disabled {
+  background: #666;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.video-info {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 20px;
+  border-radius: 15px;
+  margin: 20px 0;
+}
+
+.video-info h3 {
+  margin: 0 0 15px 0;
+  color: #fff;
+  font-size: 1.3em;
+}
+
+.video-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 15px;
+  margin-bottom: 15px;
+}
+
+.video-details strong {
+  color: #ffd700;
+}
+
+.progress-container {
+  margin: 20px 0;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 15px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 25px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #45a049);
+  border-radius: 12px;
+  width: 0%;
+  transition: width 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.progress-text {
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 5px;
+}
+
+.progress-stage {
+  text-align: center;
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.download-link {
+  text-align: center;
+  margin-top: 20px;
 }
 
 .download-btn {
+  background: linear-gradient(45deg, #4CAF50, #45a049);
+  display: inline-block;
   padding: 15px 30px;
-  background-color: #ff4444;
+  text-decoration: none;
   color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 18px;
+  border-radius: 10px;
   font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
 }
 
-.download-btn:hover:not(:disabled) {
-  background-color: #cc3333;
+.download-btn:hover {
+  background: linear-gradient(45deg, #45a049, #4CAF50);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
 }
 
-.download-btn:disabled {
-  background-color: #666;
-  cursor: not-allowed;
+.error {
+  background: rgba(244, 67, 54, 0.2);
+  border: 1px solid rgba(244, 67, 54, 0.5);
+  color: #ffcdd2;
+  padding: 15px;
+  border-radius: 10px;
+  margin: 20px 0;
 }
 
-.message {
-  margin-top: 20px;
-  padding: 10px;
-  border-radius: 5px;
-  font-weight: bold;
+.success {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.5);
+  color: #c8e6c9;
+  padding: 15px;
+  border-radius: 10px;
+  margin: 20px 0;
 }
 
-.message.success {
-  background-color: #4caf50;
-  color: white;
-}
-
-.message.error {
-  background-color: #f44336;
-  color: white;
+.format-info {
+  font-size: 0.9em;
+  opacity: 0.8;
+  margin-top: 5px;
 }

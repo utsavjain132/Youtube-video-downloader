@@ -1,103 +1,223 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import './App.css';
+import React, { useState, useRef } from "react";
+import "./App.css";
 
-function App() {
-  const [url, setUrl] = useState('');
-  const [format, setFormat] = useState('mp4');
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [message, setMessage] = useState('');
+// --- Configuration ---
+// Make sure this matches the port your backend is running on.
+const API_URL = "http://localhost:5000";
 
-  const handleDownload = async (e) => {
-    e.preventDefault();
-    
-    if (!url.trim()) {
-      setMessage('Please enter a YouTube URL');
+export default function App() {
+  const [url, setUrl] = useState("");
+  const [videoInfo, setVideoInfo] = useState(null);
+  const [selectedFormat, setSelectedFormat] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [downloadLink, setDownloadLink] = useState("");
+
+  // Use a ref to store the interval ID to prevent issues with state updates
+  const progressInterval = useRef(null);
+
+  // --- 1. Get Video Info ---
+  const handleGetInfo = async () => {
+    if (!url) {
+      setError("Please enter a YouTube URL.");
+      return;
+    }
+    setIsLoading(true);
+    setError("");
+    setVideoInfo(null);
+    setProgress(0);
+    setDownloadLink("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.details || "Failed to get video info.");
+      }
+      
+      // Convert duration from seconds to MM:SS format
+      const formatDuration = (seconds) => 
+        new Date(seconds * 1000).toISOString().substr(14, 5);
+
+      setVideoInfo({
+        ...data,
+        duration: formatDuration(data.duration),
+        view_count: Number(data.view_count).toLocaleString(),
+      });
+      
+      // Default to the first available video format
+      if (data.videoFormats.length > 0) {
+        setSelectedFormat(data.videoFormats[0].itag);
+      }
+
+    } catch (err) {
+      setError(err.message);
+      setVideoInfo(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- 2. Start Download and Poll for Progress ---
+  const handleDownload = async () => {
+    if (!selectedFormat) {
+      setError("Please select a format first.");
       return;
     }
 
-    setIsDownloading(true);
-    setMessage('');
+    setIsLoading(true);
+    setError("");
+    setProgress(0);
+    setStage("Initializing...");
 
     try {
-      const response = await axios({
-        method: 'POST',
-        url: 'http://localhost:5000/api/download',
-        data: { url, format },
-        responseType: 'blob', // Important for file download
+      // A. Start the download on the backend
+      const downloadResponse = await fetch(`${API_URL}/api/download`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, itag: selectedFormat }),
       });
 
-      // Create blob link to download
-      const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      
-      // Extract filename from response headers or use default
-      const contentDisposition = response.headers['content-disposition'];
-      const filename = contentDisposition 
-        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-        : `download.${format}`;
-      
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
-      
-      setMessage('Download completed!');
-    } catch (error) {
-      console.error('Download failed:', error);
-      setMessage('Download failed. Please check the URL and try again.');
-    } finally {
-      setIsDownloading(false);
+      const downloadData = await downloadResponse.json();
+      if (!downloadData.success) {
+        throw new Error(downloadData.error || "Failed to start download.");
+      }
+
+      const { sessionId } = downloadData;
+
+      // B. Poll for progress using the sessionId
+      progressInterval.current = setInterval(async () => {
+        try {
+          const progressResponse = await fetch(`${API_URL}/api/progress/${sessionId}`);
+          const progressData = await progressResponse.json();
+
+          setProgress(progressData.progress || 0);
+          setStage(progressData.stage || "");
+
+          // C. Handle completion or error
+          if (progressData.status === "completed") {
+            clearInterval(progressInterval.current);
+            setDownloadLink(`${API_URL}/api/file/${sessionId}`);
+            setStage("Download ready!");
+            setIsLoading(false);
+          } else if (progressData.status === "error") {
+            clearInterval(progressInterval.current);
+            setError(`Error during download: ${progressData.error}`);
+            setIsLoading(false);
+          }
+        } catch (err) {
+          clearInterval(progressInterval.current);
+          setError("Failed to get progress update.");
+          setIsLoading(false);
+        }
+      }, 2000); // Poll every 2 seconds
+
+    } catch (err) {
+      setError(err.message);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>🎥 YouTube Downloader</h1>
-        <form onSubmit={handleDownload} className="download-form">
-          <div className="input-group">
-            <input
-              type="url"
-              placeholder="Paste YouTube URL here..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={isDownloading}
-              className="url-input"
-            />
+    <div className="container">
+      <h1>🎬 YouTube Downloader</h1>
+      <p className="subtitle">
+        Download YouTube videos with FFmpeg merging for best quality
+      </p>
+
+      <form id="downloadForm" onSubmit={(e) => { e.preventDefault(); handleGetInfo(); }}>
+        <div className="form-group">
+          <label htmlFor="url">YouTube URL:</label>
+          <input
+            type="url"
+            id="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            required
+          />
+        </div>
+        <button type="submit" id="getInfoBtn" disabled={isLoading}>
+          {isLoading && !progress ? "Fetching..." : "Get Video Info"}
+        </button>
+      </form>
+
+      {error && <div className="error">❌ {error}</div>}
+
+      {videoInfo && (
+        <div id="videoInfo" className="video-info">
+          <div className="video-header">
+            <img src={videoInfo.thumbnail} alt="Video thumbnail" className="thumbnail" />
+            <h3>{videoInfo.title}</h3>
           </div>
-          
-          <div className="input-group">
+          <div className="video-details">
+            <strong>Duration:</strong> <span>{videoInfo.duration}</span>
+            <strong>Uploader:</strong> <span>{videoInfo.uploader}</span>
+            <strong>Views:</strong> <span>{videoInfo.view_count}</span>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="format">Format:</label>
             <select 
-              value={format} 
-              onChange={(e) => setFormat(e.target.value)}
-              disabled={isDownloading}
-              className="format-select"
+              id="format" 
+              value={selectedFormat}
+              onChange={(e) => setSelectedFormat(e.target.value)}
             >
-              <option value="mp4">MP4 (Video)</option>
-              <option value="mp3">MP3 (Audio)</option>
+              {videoInfo.videoFormats.map((format) => (
+                <option key={format.itag} value={format.itag}>
+                  {format.quality} {format.filesize ? `(~${format.filesize} MB)`: ''}
+                </option>
+              ))}
+              {videoInfo.audioFormats.map((format) => (
+                <option key={format.itag} value={format.itag}>
+                  Audio: {format.quality} {format.filesize ? `(~${format.filesize} MB)`: ''}
+                </option>
+              ))}
             </select>
+            <p className="format-info">
+              FFmpeg options provide the highest quality by merging separate streams.
+            </p>
           </div>
-          
-          <button 
-            type="submit" 
-            disabled={isDownloading}
-            className="download-btn"
-          >
-            {isDownloading ? 'Downloading...' : 'Download'}
+
+          <button type="button" onClick={handleDownload} disabled={isLoading}>
+             {isLoading && progress > 0 ? "Processing..." : "Download"}
           </button>
-        </form>
-        
-        {message && (
-          <div className={`message ${message.includes('failed') ? 'error' : 'success'}`}>
-            {message}
+        </div>
+      )}
+
+      {isLoading && progress > 0 && (
+        <div className="progress-container">
+          <div className="progress-stage">{stage}</div>
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: `${progress}%` }}
+            >
+              <span className="progress-text">{progress}%</span>
+            </div>
           </div>
-        )}
-      </header>
+        </div>
+      )}
+      
+      {downloadLink && (
+         <div className="success">
+           ✅ Download Ready!
+           <div className="download-link">
+             <a href={downloadLink} className="download-btn" download>
+              Click here to Download File
+             </a>
+           </div>
+         </div>
+       )}
+
     </div>
   );
 }
-
-export default App;
